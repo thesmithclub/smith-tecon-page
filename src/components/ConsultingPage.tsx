@@ -397,7 +397,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                 value={consultingData.consultant}
                 onValueChange={(value) => setConsultingData(prev => ({ ...prev, consultant: value }))}
               >
-                <SelectTrigger className="mt-2 h-12 rounded-xl border-neutral-200">
+                <SelectTrigger className="mt-2 !h-12 px-4 rounded-xl border-neutral-200 bg-white">
                   <SelectValue placeholder="컨설턴트를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
