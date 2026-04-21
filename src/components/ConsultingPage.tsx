@@ -5,7 +5,8 @@ import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Calendar } from './ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
-import { CalendarIcon, Plus, Minus, Search, ArrowLeft, Check, Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog'
+import { CalendarIcon, Plus, Minus, Search, ArrowLeft, Check, Trash2, X } from 'lucide-react'
 
 import { toast } from 'sonner@2.0.3'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
@@ -69,6 +70,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<string>(ALL_TAB)
+  const [detailItem, setDetailItem] = useState<Item | null>(null)
 
   useEffect(() => {
     fetchBookingAndItems()
@@ -450,8 +452,9 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                   return (
                     <article
                       key={item.id}
-                      className={`group relative rounded-2xl overflow-hidden border transition bg-white ${
-                        selected ? 'border-neutral-900 shadow-sm' : 'border-neutral-200 hover:border-neutral-400'
+                      onClick={() => setDetailItem(item)}
+                      className={`group relative rounded-2xl overflow-hidden border transition bg-white cursor-pointer ${
+                        selected ? 'border-neutral-900 shadow-sm' : 'border-neutral-200 hover:border-neutral-400 hover:shadow-sm'
                       }`}
                     >
                       <div className="relative aspect-[16/10] bg-neutral-100 overflow-hidden">
@@ -490,7 +493,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                           </div>
                           <Button
                             size="sm"
-                            onClick={() => addItem(item)}
+                            onClick={(e) => { e.stopPropagation(); addItem(item) }}
                             className={`rounded-full h-9 px-4 ${
                               selected
                                 ? 'bg-neutral-100 text-neutral-900 hover:bg-neutral-200'
@@ -604,7 +607,164 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
           </aside>
         </div>
       </section>
+
+      <ItemDetailDialog
+        item={detailItem}
+        onClose={() => setDetailItem(null)}
+        selectedQuantity={
+          detailItem
+            ? (consultingData.selectedItems.find(si => si.item.id === detailItem.id)?.quantity ?? 0)
+            : 0
+        }
+        onAdd={(item) => addItem(item)}
+        onDecrement={(item) => {
+          const current = consultingData.selectedItems.find(si => si.item.id === item.id)
+          if (!current) return
+          updateItemQuantity(item.id, current.quantity - 1)
+        }}
+        onRemove={(item) => removeItem(item.id)}
+      />
     </div>
+  )
+}
+
+function ItemDetailDialog({
+  item,
+  selectedQuantity,
+  onClose,
+  onAdd,
+  onDecrement,
+  onRemove
+}: {
+  item: Item | null
+  selectedQuantity: number
+  onClose: () => void
+  onAdd: (item: Item) => void
+  onDecrement: (item: Item) => void
+  onRemove: (item: Item) => void
+}) {
+  const open = !!item
+  const pkgs = item ? (Array.isArray(item.package) ? item.package : [item.package]) : []
+  const subtotal = item ? item.price * selectedQuantity : 0
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent
+        className="sm:max-w-3xl p-0 gap-0 overflow-hidden rounded-2xl border-neutral-200 bg-white [&>button[type='button']]:hidden"
+      >
+        <DialogTitle className="sr-only">{item?.name ?? '옵션 상세'}</DialogTitle>
+        <DialogDescription className="sr-only">옵션 상세 정보 및 수량 조절</DialogDescription>
+
+        {item && (
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            {/* 이미지 */}
+            <div className="relative aspect-[4/3] md:aspect-auto md:h-full bg-neutral-100">
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-neutral-300 tracking-widest text-xs">
+                  NO IMAGE
+                </div>
+              )}
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/90 backdrop-blur border border-neutral-200 flex items-center justify-center text-neutral-700 hover:text-neutral-900 hover:bg-white transition md:hidden"
+                aria-label="닫기"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* 상세 정보 */}
+            <div className="p-7 lg:p-8 flex flex-col">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-wrap gap-1.5">
+                  {pkgs.filter(Boolean).map(p => (
+                    <span
+                      key={p}
+                      className="text-[10px] uppercase tracking-[0.12em] text-neutral-600 bg-neutral-100 rounded-full px-2.5 py-1"
+                    >
+                      {p}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  onClick={onClose}
+                  className="hidden md:flex h-8 w-8 rounded-full items-center justify-center text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition"
+                  aria-label="닫기"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <h2 className="mt-4 text-2xl font-semibold tracking-tight leading-snug">{item.name}</h2>
+
+              {item.category && (
+                <div className="mt-1 text-xs uppercase tracking-[0.15em] text-neutral-400">
+                  {item.category}
+                </div>
+              )}
+
+              <div className="mt-5 text-3xl font-semibold tabular-nums">
+                {item.price.toLocaleString()}<span className="text-neutral-400 ml-1 text-base">원</span>
+              </div>
+
+              <div className="mt-6 border-t border-neutral-100 pt-5">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 mb-2">상세 설명</div>
+                <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-line">
+                  {item.description || '등록된 상세 설명이 없습니다.'}
+                </p>
+              </div>
+
+              <div className="mt-auto pt-6">
+                {selectedQuantity > 0 ? (
+                  <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">선택 중</div>
+                        <div className="text-sm font-medium mt-0.5">
+                          소계 <span className="tabular-nums font-semibold">{subtotal.toLocaleString()}원</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center border border-neutral-200 rounded-full bg-white">
+                        <button
+                          onClick={() => onDecrement(item)}
+                          className="h-9 w-9 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
+                          aria-label="수량 감소"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="w-9 text-center text-base font-medium tabular-nums">{selectedQuantity}</span>
+                        <button
+                          onClick={() => onAdd(item)}
+                          className="h-9 w-9 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
+                          aria-label="수량 증가"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onRemove(item)}
+                      className="mt-3 text-xs text-neutral-500 hover:text-neutral-900 transition"
+                    >
+                      선택에서 제거
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => onAdd(item)}
+                    className="w-full h-12 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full text-[15px]"
+                  >
+                    담기
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 
