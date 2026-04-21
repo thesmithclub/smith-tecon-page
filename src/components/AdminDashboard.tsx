@@ -54,6 +54,7 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
   const [deletedSearchBy, setDeletedSearchBy] = useState<'name' | 'booking' | 'phone'>('name')
   const [deletedCurrentPage, setDeletedCurrentPage] = useState(1)
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const statusOptions = [
     '신청', '담당자 확인', '접수완료', '상담대기', '상담완료', 
@@ -206,7 +207,6 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
   }
 
   const permanentDeleteBooking = async (bookingNumber: string) => {
-    if (!window.confirm('완전 삭제하면 복원할 수 없습니다. 정말 삭제하시겠습니까?')) return
     try {
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/bookings/${bookingNumber}`, {
         method: 'PUT',
@@ -219,6 +219,7 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
       const result = await response.json()
       if (result.success) {
         setBookings(prev => prev.filter(b => b.bookingNumber !== bookingNumber))
+        setConfirmDelete(null)
         toast.success('예약이 완전 삭제되었습니다.')
       } else {
         toast.error('완전 삭제에 실패했습니다.')
@@ -763,7 +764,7 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
                             {new Date(booking.createdAt).toLocaleDateString('ko-KR')}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -771,13 +772,32 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
                               >
                                 복원
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => permanentDeleteBooking(booking.bookingNumber)}
-                              >
-                                완전 삭제
-                              </Button>
+                              {confirmDelete === booking.bookingNumber ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => permanentDeleteBooking(booking.bookingNumber)}
+                                  >
+                                    확인 (완전삭제)
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setConfirmDelete(null)}
+                                  >
+                                    취소
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => setConfirmDelete(booking.bookingNumber)}
+                                >
+                                  완전 삭제
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
