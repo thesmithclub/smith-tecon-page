@@ -20,8 +20,9 @@ interface Booking {
   status: string
   createdAt: string
   updatedAt: string
-  carArrivalDate?: string // 입고일정 추가
-  isDeleted?: boolean // 삭제 상태 추가
+  carArrivalDate?: string
+  isDeleted?: boolean
+  isPermanentlyDeleted?: boolean
 }
 
 interface Consulting {
@@ -108,7 +109,7 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
       const result = await response.json()
 
       if (result.success) {
-        setBookings(result.bookings || [])
+        setBookings((result.bookings || []).filter((b: Booking) => !b.isPermanentlyDeleted))
       } else {
         toast.error('예약 목록을 불러오는데 실패했습니다.')
       }
@@ -208,12 +209,16 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
     if (!window.confirm('완전 삭제하면 복원할 수 없습니다. 정말 삭제하시겠습니까?')) return
     try {
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/bookings/${bookingNumber}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isPermanentlyDeleted: true })
       })
       const result = await response.json()
       if (result.success) {
-        setBookings(prev => prev.filter(booking => booking.bookingNumber !== bookingNumber))
+        setBookings(prev => prev.filter(b => b.bookingNumber !== bookingNumber))
         toast.success('예약이 완전 삭제되었습니다.')
       } else {
         toast.error('완전 삭제에 실패했습니다.')
