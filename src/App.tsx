@@ -36,14 +36,24 @@ export default function App() {
     const handleInitialRoute = () => {
       const path = getRelativePath()
       if (path === '/admin' || path.startsWith('/admin/')) {
-        setState(prev => ({ ...prev, currentPage: 'admin_login' }))
+        const wasLoggedIn = sessionStorage.getItem('isAdmin') === 'true'
+        if (wasLoggedIn) {
+          setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
+        } else {
+          setState(prev => ({ ...prev, currentPage: 'admin_login' }))
+        }
       }
     }
 
     const handlePopState = () => {
       const path = getRelativePath()
       if (path === '/admin' || path.startsWith('/admin/')) {
-        setState(prev => ({ ...prev, currentPage: 'admin_login' }))
+        const wasLoggedIn = sessionStorage.getItem('isAdmin') === 'true'
+        if (wasLoggedIn) {
+          setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
+        } else {
+          setState(prev => ({ ...prev, currentPage: 'admin_login' }))
+        }
       } else {
         setState(prev => ({ ...prev, currentPage: 'home' }))
       }
@@ -58,6 +68,7 @@ export default function App() {
   }, [])
 
   const handleAdminLogin = () => {
+    sessionStorage.setItem('isAdmin', 'true')
     window.history.pushState({}, '', base + '/admin/dashboard')
     setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
   }
@@ -160,6 +171,7 @@ export default function App() {
             onConsulting={handleConsulting}
             onItemAdmin={() => navigateTo('item-admin')}
             onLogout={() => {
+              sessionStorage.removeItem('isAdmin')
               window.history.pushState({}, '', base + '/')
               setState({ currentPage: 'home', isAdmin: false })
             }}
