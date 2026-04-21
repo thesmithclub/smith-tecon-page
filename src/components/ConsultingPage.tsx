@@ -532,24 +532,13 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
           {/* 카탈로그 */}
           <div>
-            <div className="flex items-end justify-between mb-6">
-              <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-neutral-400">Catalog</div>
-                <h2 className="text-2xl font-semibold tracking-tight mt-1">패키지 &amp; 옵션</h2>
-              </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                <Input
-                  placeholder="옵션 검색"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-10 w-56 rounded-full border-neutral-200"
-                />
-              </div>
+            <div className="mb-6">
+              <div className="text-xs uppercase tracking-[0.2em] text-neutral-400">Catalog</div>
+              <h2 className="text-2xl font-semibold tracking-tight mt-1">패키지 &amp; 옵션</h2>
             </div>
 
             {/* 패키지 탭 */}
-            <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+            <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
               {packageTabs.map(tab => {
                 const active = activeTab === tab.id
                 return (
@@ -572,6 +561,26 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                   className="ml-auto text-xs text-neutral-500 hover:text-neutral-900 transition whitespace-nowrap"
                 >
                   이 패키지 모두 선택 →
+                </button>
+              )}
+            </div>
+
+            {/* 옵션 검색 */}
+            <div className="relative mb-6">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+              <Input
+                placeholder="옵션 검색 (이름, 카테고리, 설명)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-11 pr-10 h-11 w-full rounded-full border-neutral-200 bg-white"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition"
+                  aria-label="검색 초기화"
+                >
+                  <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
