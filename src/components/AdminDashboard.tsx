@@ -204,6 +204,26 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
     }
   }
 
+  const permanentDeleteBooking = async (bookingNumber: string) => {
+    if (!window.confirm('완전 삭제하면 복원할 수 없습니다. 정말 삭제하시겠습니까?')) return
+    try {
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/bookings/${bookingNumber}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+      })
+      const result = await response.json()
+      if (result.success) {
+        setBookings(prev => prev.filter(booking => booking.bookingNumber !== bookingNumber))
+        toast.success('예약이 완전 삭제되었습니다.')
+      } else {
+        toast.error('완전 삭제에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Permanent delete error:', error)
+      toast.error('완전 삭제 중 오류가 발생했습니다.')
+    }
+  }
+
   const restoreBooking = async (bookingNumber: string) => {
     try {
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/bookings/${bookingNumber}`, {
@@ -738,13 +758,22 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
                             {new Date(booking.createdAt).toLocaleDateString('ko-KR')}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => restoreBooking(booking.bookingNumber)}
-                            >
-                              복원
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => restoreBooking(booking.bookingNumber)}
+                              >
+                                복원
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => permanentDeleteBooking(booking.bookingNumber)}
+                              >
+                                완전 삭제
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                         

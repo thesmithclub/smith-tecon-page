@@ -117,6 +117,18 @@ app.put('/make-server-9f6e3f5f/admin/bookings/:id', async (c) => {
   }
 })
 
+// 관리자: 예약 완전 삭제
+app.delete('/make-server-9f6e3f5f/admin/bookings/:id', async (c) => {
+  try {
+    const bookingNumber = c.req.param('id')
+    await kv.del(`booking:${bookingNumber}`)
+    return c.json({ success: true })
+  } catch (error) {
+    console.log('Error deleting booking:', error)
+    return c.json({ error: 'Failed to delete booking' }, 500)
+  }
+})
+
 // 컨설팅 정보 저장
 app.post('/make-server-9f6e3f5f/admin/consulting', async (c) => {
   try {
