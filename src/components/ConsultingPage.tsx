@@ -41,11 +41,18 @@ interface SelectedItem {
 interface ConsultingIntake {
   isFirstEV: string
   vehicleUse: string[]
+  vehicleUseOther: string
   passengers: string[]
+  passengersOther: string
   privacyPriority: string[]
+  privacyPriorityOther: string
   interiorPreferences: string[]
+  interiorPreferencesOther: string
   exteriorPreferences: string[]
+  exteriorPreferencesOther: string
 }
+
+const OTHER_OPTION = '기타'
 
 interface ConsultingData {
   bookingNumber: string
@@ -60,18 +67,23 @@ interface ConsultingData {
 const EMPTY_INTAKE: ConsultingIntake = {
   isFirstEV: '',
   vehicleUse: [],
+  vehicleUseOther: '',
   passengers: [],
+  passengersOther: '',
   privacyPriority: [],
+  privacyPriorityOther: '',
   interiorPreferences: [],
-  exteriorPreferences: []
+  interiorPreferencesOther: '',
+  exteriorPreferences: [],
+  exteriorPreferencesOther: ''
 }
 
 const INTAKE_OPTIONS = {
-  vehicleUse: ['출퇴근', '가족용', '업무/출장', '여가/레저', '장거리 주행'],
-  passengers: ['아이 동승', '반려동물 동승', '고령자 동승', '성인 동승'],
-  privacyPriority: ['프라이버시 중시', '열 차단 중시', '자외선 차단', '균형있게'],
-  interiorPreferences: ['프리미엄', '실용성', '미니멀', '테크/디지털', '편의성'],
-  exteriorPreferences: ['차량 보호(PPF/코팅)', '스타일링', '휠/타이어', '루프/캐리어', '미관 유지']
+  vehicleUse: ['출퇴근', '가족용', '업무/출장', '여가/레저', '장거리 주행', OTHER_OPTION],
+  passengers: ['아이 동승', '반려동물 동승', '고령자 동승', '성인 동승', OTHER_OPTION],
+  privacyPriority: ['프라이버시 중시', '열 차단 중시', '자외선 차단', '균형있게', OTHER_OPTION],
+  interiorPreferences: ['프리미엄', '실용성', '미니멀', '테크/디지털', '편의성', OTHER_OPTION],
+  exteriorPreferences: ['차량 보호(PPF/코팅)', '스타일링', '휠/타이어', '루프/캐리어', '미관 유지', OTHER_OPTION]
 } as const
 
 interface ConsultingPageProps {
@@ -466,50 +478,115 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
               hint="차량을 어떤 목적으로 사용하시나요? (복수 선택)"
               options={INTAKE_OPTIONS.vehicleUse}
               values={consultingData.intake.vehicleUse}
-              onToggle={(v) => setConsultingData(prev => ({
+              onToggle={(v) => setConsultingData(prev => {
+                const next = toggleValue(prev.intake.vehicleUse, v)
+                return {
+                  ...prev,
+                  intake: {
+                    ...prev.intake,
+                    vehicleUse: next,
+                    vehicleUseOther: next.includes(OTHER_OPTION) ? prev.intake.vehicleUseOther : ''
+                  }
+                }
+              })}
+              otherValue={consultingData.intake.vehicleUseOther}
+              onOtherChange={(v) => setConsultingData(prev => ({
                 ...prev,
-                intake: { ...prev.intake, vehicleUse: toggleValue(prev.intake.vehicleUse, v) }
+                intake: { ...prev.intake, vehicleUseOther: v }
               }))}
+              otherPlaceholder="예: 배달, 픽업 등"
             />
             <IntakeGroup
               label="동승자"
               hint="자주 함께 탑승하는 구성원이 있나요? (복수 선택)"
               options={INTAKE_OPTIONS.passengers}
               values={consultingData.intake.passengers}
-              onToggle={(v) => setConsultingData(prev => ({
+              onToggle={(v) => setConsultingData(prev => {
+                const next = toggleValue(prev.intake.passengers, v)
+                return {
+                  ...prev,
+                  intake: {
+                    ...prev.intake,
+                    passengers: next,
+                    passengersOther: next.includes(OTHER_OPTION) ? prev.intake.passengersOther : ''
+                  }
+                }
+              })}
+              otherValue={consultingData.intake.passengersOther}
+              onOtherChange={(v) => setConsultingData(prev => ({
                 ...prev,
-                intake: { ...prev.intake, passengers: toggleValue(prev.intake.passengers, v) }
+                intake: { ...prev.intake, passengersOther: v }
               }))}
+              otherPlaceholder="예: 카시트 2개, 중형견 등"
             />
             <IntakeGroup
               label="프라이버시 / 썬팅"
               hint="프라이버시와 열 차단 중 무엇이 우선인가요?"
               options={INTAKE_OPTIONS.privacyPriority}
               values={consultingData.intake.privacyPriority}
-              onToggle={(v) => setConsultingData(prev => ({
+              onToggle={(v) => setConsultingData(prev => {
+                const next = toggleValue(prev.intake.privacyPriority, v)
+                return {
+                  ...prev,
+                  intake: {
+                    ...prev.intake,
+                    privacyPriority: next,
+                    privacyPriorityOther: next.includes(OTHER_OPTION) ? prev.intake.privacyPriorityOther : ''
+                  }
+                }
+              })}
+              otherValue={consultingData.intake.privacyPriorityOther}
+              onOtherChange={(v) => setConsultingData(prev => ({
                 ...prev,
-                intake: { ...prev.intake, privacyPriority: toggleValue(prev.intake.privacyPriority, v) }
+                intake: { ...prev.intake, privacyPriorityOther: v }
               }))}
+              otherPlaceholder="예: 특정 농도 선호, 전면 투과율 등"
             />
             <IntakeGroup
               label="실내 선호"
               hint="실내 악세서리에서 중요하게 여기시는 요소"
               options={INTAKE_OPTIONS.interiorPreferences}
               values={consultingData.intake.interiorPreferences}
-              onToggle={(v) => setConsultingData(prev => ({
+              onToggle={(v) => setConsultingData(prev => {
+                const next = toggleValue(prev.intake.interiorPreferences, v)
+                return {
+                  ...prev,
+                  intake: {
+                    ...prev.intake,
+                    interiorPreferences: next,
+                    interiorPreferencesOther: next.includes(OTHER_OPTION) ? prev.intake.interiorPreferencesOther : ''
+                  }
+                }
+              })}
+              otherValue={consultingData.intake.interiorPreferencesOther}
+              onOtherChange={(v) => setConsultingData(prev => ({
                 ...prev,
-                intake: { ...prev.intake, interiorPreferences: toggleValue(prev.intake.interiorPreferences, v) }
+                intake: { ...prev.intake, interiorPreferencesOther: v }
               }))}
+              otherPlaceholder="예: 트렁크 정리함, 수납 강화 등"
             />
             <IntakeGroup
               label="외부 선호"
               hint="외부 악세서리/보호 옵션 중 관심 있으신 항목"
               options={INTAKE_OPTIONS.exteriorPreferences}
               values={consultingData.intake.exteriorPreferences}
-              onToggle={(v) => setConsultingData(prev => ({
+              onToggle={(v) => setConsultingData(prev => {
+                const next = toggleValue(prev.intake.exteriorPreferences, v)
+                return {
+                  ...prev,
+                  intake: {
+                    ...prev.intake,
+                    exteriorPreferences: next,
+                    exteriorPreferencesOther: next.includes(OTHER_OPTION) ? prev.intake.exteriorPreferencesOther : ''
+                  }
+                }
+              })}
+              otherValue={consultingData.intake.exteriorPreferencesOther}
+              onOtherChange={(v) => setConsultingData(prev => ({
                 ...prev,
-                intake: { ...prev.intake, exteriorPreferences: toggleValue(prev.intake.exteriorPreferences, v) }
+                intake: { ...prev.intake, exteriorPreferencesOther: v }
               }))}
+              otherPlaceholder="예: 머드가드, 도어 프로텍터 등"
               className="md:col-span-2"
             />
           </div>
@@ -942,10 +1019,24 @@ interface IntakeGroupProps {
   options: readonly string[]
   values: string[]
   onToggle: (value: string) => void
+  otherValue?: string
+  onOtherChange?: (value: string) => void
+  otherPlaceholder?: string
   className?: string
 }
 
-function IntakeGroup({ label, hint, options, values, onToggle, className = '' }: IntakeGroupProps) {
+function IntakeGroup({
+  label,
+  hint,
+  options,
+  values,
+  onToggle,
+  otherValue,
+  onOtherChange,
+  otherPlaceholder = '직접 입력',
+  className = ''
+}: IntakeGroupProps) {
+  const otherActive = values.includes(OTHER_OPTION)
   return (
     <div className={className}>
       <div className="flex items-baseline justify-between gap-3">
@@ -978,6 +1069,16 @@ function IntakeGroup({ label, hint, options, values, onToggle, className = '' }:
           )
         })}
       </div>
+      {otherActive && onOtherChange && (
+        <div className="mt-3">
+          <Input
+            value={otherValue ?? ''}
+            onChange={(e) => onOtherChange(e.target.value)}
+            placeholder={otherPlaceholder}
+            className="h-10 rounded-xl border-neutral-200 bg-white"
+          />
+        </div>
+      )}
     </div>
   )
 }
