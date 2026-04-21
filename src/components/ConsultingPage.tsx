@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Calendar } from './ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
-import { CalendarIcon, Plus, Minus, ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { CalendarIcon, Plus, Minus, Search, ArrowLeft, Check, Trash2 } from 'lucide-react'
 
 import { toast } from 'sonner@2.0.3'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
@@ -53,6 +51,8 @@ interface ConsultingPageProps {
   onBack: () => void
 }
 
+const ALL_TAB = '__all__'
+
 export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
   const [booking, setBooking] = useState<Booking | null>(null)
   const [items, setItems] = useState<Item[]>([])
@@ -67,71 +67,54 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [expandedPackages, setExpandedPackages] = useState<Set<string>>(new Set())
-  const [showAllItems, setShowAllItems] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState<string>(ALL_TAB)
 
   useEffect(() => {
     fetchBookingAndItems()
   }, [])
 
   useEffect(() => {
-    calculateTotalPrice()
+    const total = consultingData.selectedItems.reduce(
+      (sum, si) => sum + si.item.price * si.quantity,
+      0
+    )
+    setConsultingData(prev => ({ ...prev, totalPrice: total }))
   }, [consultingData.selectedItems])
 
   const fetchBookingAndItems = async () => {
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15초 타임아웃
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
 
-      // 예약 정보 조회
       const bookingResponse = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/bookings`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
+        headers: { 'Authorization': `Bearer ${publicAnonKey}` },
         signal: controller.signal
       })
-
       const bookingResult = await bookingResponse.json()
       if (bookingResult.success) {
         const foundBooking = bookingResult.bookings.find((b: Booking) => b.bookingNumber === bookingNumber)
         setBooking(foundBooking)
       }
 
-      // 패키지 목록 조회
       const packagesResponse = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/packages`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
+        headers: { 'Authorization': `Bearer ${publicAnonKey}` },
         signal: controller.signal
       })
-
       const packagesResult = await packagesResponse.json()
-      if (packagesResult.success) {
-        setPackages(packagesResult.packages || [])
-      }
+      if (packagesResult.success) setPackages(packagesResult.packages || [])
 
-      // 아이템 목록 조회
       const itemsResponse = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/items`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
+        headers: { 'Authorization': `Bearer ${publicAnonKey}` },
         signal: controller.signal
       })
-
       const itemsResult = await itemsResponse.json()
-      if (itemsResult.success) {
-        setItems(itemsResult.items || [])
-      }
+      if (itemsResult.success) setItems(itemsResult.items || [])
 
-      // 기존 컨설팅 정보 조회
       const consultingResponse = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/consulting/${bookingNumber}`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
+        headers: { 'Authorization': `Bearer ${publicAnonKey}` },
         signal: controller.signal
       })
-
       clearTimeout(timeoutId)
 
       const consultingResult = await consultingResponse.json()
@@ -146,9 +129,8 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
           totalPrice: existing.totalPrice || 0
         }))
       }
-
-    } catch (error) {
-      if (error.name === 'AbortError') {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
         toast.error('요청 시간이 초과되었습니다. 다시 시도해주세요.')
       } else {
         console.error('Fetch error:', error)
@@ -159,30 +141,18 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
     }
   }
 
-  const calculateTotalPrice = () => {
-    const total = consultingData.selectedItems.reduce((sum, selectedItem) => {
-      return sum + (selectedItem.item.price * selectedItem.quantity)
-    }, 0)
-    
-    setConsultingData(prev => ({ ...prev, totalPrice: total }))
-  }
-
   const addItem = (item: Item) => {
     setConsultingData(prev => {
       const existingIndex = prev.selectedItems.findIndex(si => si.item.id === item.id)
-      
       if (existingIndex >= 0) {
-        // 이미 있는 아이템이면 수량 증가
         const newSelectedItems = [...prev.selectedItems]
-        newSelectedItems[existingIndex].quantity += 1
-        return { ...prev, selectedItems: newSelectedItems }
-      } else {
-        // 새로운 아이템 추가
-        return {
-          ...prev,
-          selectedItems: [...prev.selectedItems, { item, quantity: 1 }]
+        newSelectedItems[existingIndex] = {
+          ...newSelectedItems[existingIndex],
+          quantity: newSelectedItems[existingIndex].quantity + 1
         }
+        return { ...prev, selectedItems: newSelectedItems }
       }
+      return { ...prev, selectedItems: [...prev.selectedItems, { item, quantity: 1 }] }
     })
   }
 
@@ -198,7 +168,6 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
       removeItem(itemId)
       return
     }
-
     setConsultingData(prev => ({
       ...prev,
       selectedItems: prev.selectedItems.map(si =>
@@ -212,48 +181,41 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
     return day === 0 || day === 6
   }
 
-  const togglePackage = (packageId: string) => {
-    setExpandedPackages(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(packageId)) {
-        newSet.delete(packageId)
-      } else {
-        newSet.add(packageId)
-      }
-      return newSet
-    })
-  }
-
-  const selectAllItemsInPackage = (packageName: string) => {
-    const packageItems = items.filter(item => {
-      if (Array.isArray(item.package)) {
-        return item.package.includes(packageName)
-      }
-      return item.package === packageName
-    })
-    packageItems.forEach(item => {
-      const existingIndex = consultingData.selectedItems.findIndex(si => si.item.id === item.id)
-      if (existingIndex < 0) {
-        addItem(item)
-      }
-    })
-    toast.success(`${packageName} 패키지의 모든 아이템이 선택되었습니다.`)
-  }
-
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const selectedIds = useMemo(
+    () => new Set(consultingData.selectedItems.map(si => si.item.id)),
+    [consultingData.selectedItems]
   )
+
+  const visibleItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    return items.filter(item => {
+      if (activeTab !== ALL_TAB) {
+        const itemPackages = Array.isArray(item.package) ? item.package : [item.package]
+        if (!itemPackages.includes(activeTab)) return false
+      }
+      if (!q) return true
+      return (
+        item.name.toLowerCase().includes(q) ||
+        (item.description || '').toLowerCase().includes(q) ||
+        (item.category || '').toLowerCase().includes(q)
+      )
+    })
+  }, [items, activeTab, searchQuery])
+
+  const selectAllVisibleInTab = () => {
+    if (activeTab === ALL_TAB) return
+    visibleItems.forEach(item => {
+      if (!selectedIds.has(item.id)) addItem(item)
+    })
+    toast.success(`${activeTab} 패키지의 아이템이 선택되었습니다.`)
+  }
 
   const handleSubmit = async () => {
     if (!consultingData.carInDate || !consultingData.consultant) {
-      toast.error('필수 항목을 모두 입력해주세요.')
+      toast.error('차량입고일자와 담당컨설턴트를 선택해주세요.')
       return
     }
-
     setIsSaving(true)
-
     try {
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/consulting`, {
         method: 'POST',
@@ -266,9 +228,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
           carInDate: consultingData.carInDate.toISOString()
         })
       })
-
       const result = await response.json()
-
       if (result.success) {
         toast.success('컨설팅 정보가 저장되었습니다.')
         onBack()
@@ -285,387 +245,383 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div>로딩 중...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-neutral-500 tracking-wide">LOADING…</div>
       </div>
     )
   }
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <p className="mb-4">예약 정보를 찾을 수 없습니다.</p>
-          <Button onClick={onBack}>돌아가기</Button>
+          <p className="mb-6 text-neutral-600">예약 정보를 찾을 수 없습니다.</p>
+          <Button onClick={onBack} variant="outline">돌아가기</Button>
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">컨설팅 상담 페이지</h1>
-          <Button onClick={onBack} variant="outline">
-            뒤로가기
-          </Button>
-        </div>
+  const totalQty = consultingData.selectedItems.reduce((s, si) => s + si.quantity, 0)
+  const packageTabs = [{ id: ALL_TAB, name: '전체' }, ...packages.map(p => ({ id: p.name, name: p.name }))]
 
-        {/* 고객 정보 */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>고객 정보</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>예약번호</Label>
-                <p className="font-semibold">{booking.bookingNumber}</p>
-              </div>
-              <div>
-                <Label>이름</Label>
-                <p className="font-semibold">{booking.name}</p>
-              </div>
-              <div>
-                <Label>연락처</Label>
-                <p className="font-semibold">{booking.phone}</p>
-              </div>
-              <div>
-                <Label>차종</Label>
-                <p className="font-semibold">{booking.carModel}</p>
-              </div>
-              <div>
-                <Label>방문일시</Label>
-                <p className="font-semibold">
-                  {new Date(booking.visitDate).toLocaleDateString('ko-KR')} {booking.visitTime}
-                </p>
-              </div>
-              <div>
-                <Label>상태</Label>
-                <p className="font-semibold">{booking.status}</p>
+  return (
+    <div className="min-h-screen bg-white text-neutral-900">
+      {/* 상단 스티키 헤더 */}
+      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-neutral-200">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-4 flex items-center gap-6">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-sm text-neutral-600 hover:text-neutral-900 transition"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>대시보드</span>
+          </button>
+          <div className="hidden md:flex items-baseline gap-3 flex-1 min-w-0">
+            <span className="text-xs uppercase tracking-[0.18em] text-neutral-400">Consultation</span>
+            <span className="text-sm text-neutral-300">·</span>
+            <span className="text-sm font-medium text-neutral-800 truncate">{booking.name}</span>
+            <span className="text-sm text-neutral-400">·</span>
+            <span className="text-sm text-neutral-500 truncate">{booking.carModel}</span>
+            <span className="text-sm text-neutral-400">·</span>
+            <span className="text-sm text-neutral-500 tabular-nums">{booking.bookingNumber}</span>
+          </div>
+          <div className="flex items-center gap-6 ml-auto">
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">선택 {totalQty}건</div>
+              <div className="text-lg font-semibold tabular-nums">
+                {consultingData.totalPrice.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSaving}
+              className="bg-neutral-900 hover:bg-neutral-800 text-white rounded-full px-6 h-10"
+            >
+              {isSaving ? '저장 중…' : '상담 완료 · 예약'}
+            </Button>
+          </div>
+        </div>
+      </header>
 
-        {/* 컨설팅 정보 입력 */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>컨설팅 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label className="mb-2.5">차량입고일자 *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {consultingData.carInDate ? (
-                        consultingData.carInDate.toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })
-                      ) : (
-                        <span>날짜를 선택하세요</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={consultingData.carInDate}
-                      onSelect={(date) => setConsultingData(prev => ({ ...prev, carInDate: date }))}
-                      disabled={(date) => 
-                        date < new Date() || isWeekend(date)
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label className="mb-2.5">담당컨설턴트 *</Label>
-                <Select 
-                  value={consultingData.consultant} 
-                  onValueChange={(value) => setConsultingData(prev => ({ ...prev, consultant: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="컨설턴트를 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="김기현">김기현</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* 히어로 */}
+      <section className="border-b border-neutral-100">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10 lg:py-14">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-neutral-400 mb-3">In-person Consultation</div>
+              <h1 className="text-3xl lg:text-5xl font-semibold tracking-tight leading-tight">
+                {booking.name} <span className="text-neutral-400 font-light">고객님</span>
+              </h1>
+              <p className="text-neutral-500 mt-2 text-sm lg:text-base">
+                {booking.carModel} · {new Date(booking.visitDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} {booking.visitTime}
+              </p>
+            </div>
+            <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-3 text-sm">
+              <InfoCell label="예약번호" value={booking.bookingNumber} mono />
+              <InfoCell label="연락처" value={booking.phone} />
+              <InfoCell label="방문 지점" value={booking.location} />
+              <InfoCell label="상태" value={booking.status} />
+            </dl>
+          </div>
+          {booking.message && (
+            <p className="mt-6 text-sm text-neutral-600 bg-neutral-50 border border-neutral-100 rounded-2xl px-5 py-3 max-w-2xl">
+              “{booking.message}”
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* 컨설팅 정보 입력 */}
+      <section className="border-b border-neutral-100">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div>
+              <FieldLabel required>차량 입고일자</FieldLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="mt-2 w-full h-12 px-4 flex items-center justify-between rounded-xl border border-neutral-200 bg-white text-sm hover:border-neutral-400 transition">
+                    <span className={consultingData.carInDate ? 'text-neutral-900' : 'text-neutral-400'}>
+                      {consultingData.carInDate
+                        ? consultingData.carInDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+                        : '날짜를 선택하세요'}
+                    </span>
+                    <CalendarIcon className="h-4 w-4 text-neutral-400" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={consultingData.carInDate}
+                    onSelect={(date) => setConsultingData(prev => ({ ...prev, carInDate: date }))}
+                    disabled={(date) => date < new Date() || isWeekend(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
-              <Label className="mb-2.5">컨설팅 상담노트</Label>
+              <FieldLabel required>담당 컨설턴트</FieldLabel>
+              <Select
+                value={consultingData.consultant}
+                onValueChange={(value) => setConsultingData(prev => ({ ...prev, consultant: value }))}
+              >
+                <SelectTrigger className="mt-2 h-12 rounded-xl border-neutral-200">
+                  <SelectValue placeholder="컨설턴트를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="김기현">김기현</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel>상담 노트</FieldLabel>
               <Textarea
                 value={consultingData.consultingNotes}
                 onChange={(e) => setConsultingData(prev => ({ ...prev, consultingNotes: e.target.value }))}
-                placeholder="상담 내용을 입력하세요"
-                rows={4}
+                placeholder="상담 내용, 고객 요구 사항 등"
+                rows={3}
+                className="mt-2 rounded-xl border-neutral-200 resize-none"
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </section>
 
-        {/* 패키지 및 옵션 선택 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* 아이템 목록 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>패키지 및 옵션</CardTitle>
+      {/* 카탈로그 + 선택 아이템 */}
+      <section className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10 lg:py-14">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
+          {/* 카탈로그 */}
+          <div>
+            <div className="flex items-end justify-between mb-6">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-neutral-400">Catalog</div>
+                <h2 className="text-2xl font-semibold tracking-tight mt-1">패키지 &amp; 옵션</h2>
+              </div>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                 <Input
-                  placeholder="옵션 검색..."
+                  placeholder="옵션 검색"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-9 h-10 w-56 rounded-full border-neutral-200"
                 />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* 모든 옵션 보기 */}
-              <div className="border rounded-lg">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowAllItems(!showAllItems)}
-                  className="w-full justify-between p-4 h-auto"
+            </div>
+
+            {/* 패키지 탭 */}
+            <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+              {packageTabs.map(tab => {
+                const active = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`shrink-0 px-4 h-9 rounded-full text-sm transition border ${
+                      active
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400 hover:text-neutral-900'
+                    }`}
+                  >
+                    {tab.name}
+                  </button>
+                )
+              })}
+              {activeTab !== ALL_TAB && visibleItems.length > 0 && (
+                <button
+                  onClick={selectAllVisibleInTab}
+                  className="ml-auto text-xs text-neutral-500 hover:text-neutral-900 transition whitespace-nowrap"
                 >
-                  <div className="flex flex-col items-start">
-                    <span className="font-semibold">모든 옵션 보기</span>
-                    <span className="text-sm text-gray-500">전체 {filteredItems.length}개 아이템</span>
-                  </div>
-                  {showAllItems ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </Button>
-                
-                {showAllItems && (
-                  <div className="border-t p-4 space-y-3">
-                    {filteredItems.map(item => (
-                      <div key={item.id} className="border rounded-lg p-3">
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* 첫번째 열: 제품 정보 */}
-                          <div className="flex flex-col justify-between">
-                            <div>
-                              <h4 className="font-semibold mb-1">{item.name}</h4>
-                              <p className="text-xs text-gray-600 mb-1">
-                                {Array.isArray(item.package) ? item.package.join(', ') : item.package}
-                              </p>
-                              <p className="text-sm text-gray-500 mb-2 line-clamp-2">{item.description}</p>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <p className="font-bold text-green-600">
-                                {item.price.toLocaleString()}원
-                              </p>
-                              <Button
-                                size="sm"
-                                onClick={() => addItem(item)}
-                                className="w-full"
-                              >
-                                (옵션 추가하기)
-                              </Button>
-                            </div>
+                  이 패키지 모두 선택 →
+                </button>
+              )}
+            </div>
+
+            {/* 아이템 그리드 */}
+            {visibleItems.length === 0 ? (
+              <div className="py-20 text-center text-neutral-400 text-sm">
+                해당 조건에 맞는 옵션이 없습니다.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {visibleItems.map(item => {
+                  const selected = selectedIds.has(item.id)
+                  const pkgs = Array.isArray(item.package) ? item.package : [item.package]
+                  return (
+                    <article
+                      key={item.id}
+                      className={`group relative rounded-2xl overflow-hidden border transition bg-white ${
+                        selected ? 'border-neutral-900 shadow-sm' : 'border-neutral-200 hover:border-neutral-400'
+                      }`}
+                    >
+                      <div className="relative aspect-[16/10] bg-neutral-100 overflow-hidden">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="w-full h-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-300 text-xs tracking-widest">
+                            NO IMAGE
                           </div>
-                          
-                          {/* 두번째 열: 이미지 */}
-                          <div className="flex items-center justify-center">
-                            {item.imageUrl ? (
-                              <img 
-                                src={item.imageUrl} 
-                                alt={item.name}
-                                className="w-full h-20 object-cover rounded"
-                              />
-                            ) : (
-                              <div className="w-full h-20 bg-gray-100 rounded flex items-center justify-center">
-                                <span className="text-gray-400 text-xs">이미지 없음</span>
-                              </div>
-                            )}
+                        )}
+                        {selected && (
+                          <div className="absolute top-3 right-3 h-7 w-7 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow">
+                            <Check className="h-4 w-4" />
                           </div>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {pkgs.filter(Boolean).slice(0, 3).map(p => (
+                            <span key={p} className="text-[10px] uppercase tracking-[0.12em] text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5">
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                        <h3 className="font-semibold text-base leading-snug">{item.name}</h3>
+                        {item.description && (
+                          <p className="text-sm text-neutral-500 mt-1 line-clamp-2">{item.description}</p>
+                        )}
+                        <div className="mt-4 flex items-center justify-between">
+                          <div className="text-lg font-semibold tabular-nums">
+                            {item.price.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => addItem(item)}
+                            className={`rounded-full h-9 px-4 ${
+                              selected
+                                ? 'bg-neutral-100 text-neutral-900 hover:bg-neutral-200'
+                                : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                            }`}
+                            variant="ghost"
+                          >
+                            {selected ? '+1 추가' : '담기'}
+                          </Button>
                         </div>
                       </div>
-                    ))}
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 선택된 아이템 (스티키) */}
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60">
+              <div className="px-6 pt-6 pb-4 border-b border-neutral-200">
+                <div className="text-xs uppercase tracking-[0.2em] text-neutral-400">Selection</div>
+                <div className="flex items-baseline justify-between mt-1">
+                  <h2 className="text-xl font-semibold tracking-tight">선택한 옵션</h2>
+                  <span className="text-sm text-neutral-500 tabular-nums">{totalQty}건</span>
+                </div>
+              </div>
+
+              <div className="max-h-[520px] overflow-y-auto">
+                {consultingData.selectedItems.length === 0 ? (
+                  <div className="px-6 py-16 text-center text-sm text-neutral-400">
+                    아직 선택한 옵션이 없습니다.
+                    <div className="text-xs mt-1 text-neutral-300">좌측에서 옵션을 담아주세요.</div>
                   </div>
+                ) : (
+                  <ul className="divide-y divide-neutral-200">
+                    {consultingData.selectedItems.map(si => (
+                      <li key={si.item.id} className="px-6 py-4">
+                        <div className="flex gap-3">
+                          <div className="w-14 h-14 rounded-lg bg-white border border-neutral-200 overflow-hidden shrink-0">
+                            {si.item.imageUrl ? (
+                              <img src={si.item.imageUrl} alt={si.item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-neutral-100" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="text-sm font-medium leading-snug truncate">{si.item.name}</h4>
+                              <button
+                                onClick={() => removeItem(si.item.id)}
+                                className="text-neutral-400 hover:text-neutral-900 transition shrink-0"
+                                aria-label="삭제"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="text-xs text-neutral-500 mt-0.5 tabular-nums">
+                              {si.item.price.toLocaleString()}원
+                            </div>
+                            <div className="mt-2 flex items-center justify-between">
+                              <div className="flex items-center border border-neutral-200 rounded-full bg-white">
+                                <button
+                                  onClick={() => updateItemQuantity(si.item.id, si.quantity - 1)}
+                                  className="h-7 w-7 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
+                                  aria-label="수량 감소"
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="w-7 text-center text-sm tabular-nums">{si.quantity}</span>
+                                <button
+                                  onClick={() => updateItemQuantity(si.item.id, si.quantity + 1)}
+                                  className="h-7 w-7 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
+                                  aria-label="수량 증가"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <div className="text-sm font-semibold tabular-nums">
+                                {(si.item.price * si.quantity).toLocaleString()}원
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 
-              {/* 패키지별 구성 */}
-              {packages.map(packageData => {
-                const packageItems = items.filter(item => {
-                  const itemPackages = Array.isArray(item.package) ? item.package : [item.package]
-                  return itemPackages.includes(packageData.name) && 
-                    (!searchQuery || filteredItems.some(fi => fi.id === item.id))
-                })
-                
-                if (packageItems.length === 0) return null
-                
-                const isExpanded = expandedPackages.has(packageData.id)
-                
-                return (
-                  <div key={packageData.id} className="border rounded-lg">
-                    <div className="flex items-center justify-between p-4">
-                      <Button
-                        variant="ghost"
-                        onClick={() => togglePackage(packageData.id)}
-                        className="flex-1 justify-between h-auto p-0"
-                      >
-                        <div className="flex flex-col items-start">
-                          <span className="font-semibold text-blue-600">{packageData.name} 패키지</span>
-                          {packageData.description && (
-                            <span className="text-sm text-gray-500">{packageData.description}</span>
-                          )}
-                          <span className="text-xs text-gray-400">{packageItems.length}개 아이템</span>
-                        </div>
-                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => selectAllItemsInPackage(packageData.name)}
-                        className="ml-2"
-                      >
-                        모두선택
-                      </Button>
-                    </div>
-                    
-                    {isExpanded && (
-                      <div className="border-t p-4 space-y-3">
-                        {packageItems.map(item => (
-                          <div key={item.id} className="border rounded-lg p-3">
-                            <div className="grid grid-cols-2 gap-4">
-                              {/* 첫번째 열: 제품 정보 */}
-                              <div className="flex flex-col justify-between">
-                                <div>
-                                  <h4 className="font-semibold mb-1">{item.name}</h4>
-                                  <p className="text-sm text-gray-500 mb-2 line-clamp-2">{item.description}</p>
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                  <p className="font-bold text-green-600">
-                                    {item.price.toLocaleString()}원
-                                  </p>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => addItem(item)}
-                                    className="w-full"
-                                  >
-                                    (옵션 추가하기)
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              {/* 두번째 열: 이미지 */}
-                              <div className="flex items-center justify-center">
-                                {item.imageUrl ? (
-                                  <img 
-                                    src={item.imageUrl} 
-                                    alt={item.name}
-                                    className="w-full aspect-video object-cover rounded"
-                                  />
-                                ) : (
-                                  <div className="w-full h-20 bg-gray-100 rounded flex items-center justify-center">
-                                    <span className="text-gray-400 text-xs">이미지 없음</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-
-          {/* 선택된 아이템 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>선택된 아이템</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {consultingData.selectedItems.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">선택된 아이템이 없습니다.</p>
-              ) : (
-                <div className="space-y-3">
-                  {consultingData.selectedItems.map(selectedItem => (
-                    <div key={selectedItem.item.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{selectedItem.item.name}</h4>
-                          <p className="text-sm text-gray-600">
-                            {Array.isArray(selectedItem.item.package) ? selectedItem.item.package.join(', ') : selectedItem.item.package}
-                          </p>
-                          <p className="text-sm font-bold text-green-600">
-                            {selectedItem.item.price.toLocaleString()}원
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateItemQuantity(selectedItem.item.id, selectedItem.quantity - 1)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="font-semibold w-8 text-center">{selectedItem.quantity}</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateItemQuantity(selectedItem.item.id, selectedItem.quantity + 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => removeItem(selectedItem.item.id)}
-                            className="ml-2"
-                          >
-                            삭제
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-right">
-                        <span className="text-lg font-bold">
-                          소계: {(selectedItem.item.price * selectedItem.quantity).toLocaleString()}원
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div className="border-t pt-4 mt-4">
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-red-600">
-                        총 합계: {consultingData.totalPrice.toLocaleString()}원
-                      </span>
-                    </div>
-                  </div>
+              <div className="px-6 py-5 border-t border-neutral-200 bg-white rounded-b-2xl">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400">Total</span>
+                  <span className="text-2xl font-semibold tabular-nums">
+                    {consultingData.totalPrice.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-base">원</span>
+                  </span>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSaving}
+                  className="mt-4 w-full h-12 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full text-[15px]"
+                >
+                  {isSaving ? '저장 중…' : '상담 완료 · 예약 진행'}
+                </Button>
+                <p className="text-[11px] text-neutral-400 text-center mt-2">
+                  저장 시 예약 상태가 <strong className="text-neutral-600">상담완료</strong>로 변경됩니다.
+                </p>
+              </div>
+            </div>
+          </aside>
         </div>
-
-        {/* 저장 버튼 */}
-        <div className="text-center">
-          <Button
-            onClick={handleSubmit}
-            disabled={isSaving}
-            className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-lg"
-          >
-            {isSaving ? '저장 중...' : '컨설팅완료 및 아이템예약 진행'}
-          </Button>
-        </div>
-      </div>
+      </section>
     </div>
+  )
+}
+
+function InfoCell({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <dt className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">{label}</dt>
+      <dd className={`mt-1 text-sm text-neutral-800 ${mono ? 'tabular-nums' : ''}`}>{value}</dd>
+    </div>
+  )
+}
+
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 flex items-center gap-1">
+      {children}
+      {required && <span className="text-neutral-900">*</span>}
+    </label>
   )
 }
