@@ -24,54 +24,57 @@ export default function App() {
     isAdmin: false
   })
 
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+
+  const getRelativePath = () => {
+    const path = window.location.pathname
+    return path.startsWith(base) ? path.slice(base.length) || '/' : path
+  }
+
   // URL 기반 라우팅을 위한 초기화 및 감지
   useEffect(() => {
     const handleInitialRoute = () => {
-      const path = window.location.pathname
-      if (path === '/admin') {
+      const path = getRelativePath()
+      if (path === '/admin' || path.startsWith('/admin/')) {
         setState(prev => ({ ...prev, currentPage: 'admin_login' }))
       }
     }
 
     const handlePopState = () => {
-      const path = window.location.pathname
-      if (path === '/admin') {
+      const path = getRelativePath()
+      if (path === '/admin' || path.startsWith('/admin/')) {
         setState(prev => ({ ...prev, currentPage: 'admin_login' }))
       } else {
         setState(prev => ({ ...prev, currentPage: 'home' }))
       }
     }
 
-    // 초기 URL 확인
     handleInitialRoute()
 
-    // 브라우저 뒤로가기/앞으로가기 이벤트 리스너
     window.addEventListener('popstate', handlePopState)
-
     return () => {
       window.removeEventListener('popstate', handlePopState)
     }
   }, [])
 
   const handleAdminLogin = () => {
-    window.history.pushState({}, '', '/admin/dashboard')
+    window.history.pushState({}, '', base + '/admin/dashboard')
     setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
   }
 
   const handleConsulting = (bookingNumber: string) => {
-    setState(prev => ({ 
-      ...prev, 
-      currentPage: 'consulting', 
-      selectedBookingNumber: bookingNumber 
+    setState(prev => ({
+      ...prev,
+      currentPage: 'consulting',
+      selectedBookingNumber: bookingNumber
     }))
   }
 
   const navigateTo = (page: Page) => {
-    // URL 업데이트
     if (page === 'home') {
-      window.history.pushState({}, '', '/')
+      window.history.pushState({}, '', base + '/')
     } else if (page === 'admin_login') {
-      window.history.pushState({}, '', '/admin')
+      window.history.pushState({}, '', base + '/admin')
     }
     setState(prev => ({ ...prev, currentPage: page }))
   }
@@ -157,7 +160,7 @@ export default function App() {
             onConsulting={handleConsulting}
             onItemAdmin={() => navigateTo('item-admin')}
             onLogout={() => {
-              window.history.pushState({}, '', '/')
+              window.history.pushState({}, '', base + '/')
               setState({ currentPage: 'home', isAdmin: false })
             }}
           />
