@@ -177,14 +177,27 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
 
   const deleteBooking = async (bookingNumber: string) => {
     try {
-      setBookings(prev => 
-        prev.map(booking => 
-          booking.bookingNumber === bookingNumber 
-            ? { ...booking, isDeleted: true }
-            : booking
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/bookings/${bookingNumber}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isDeleted: true })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setBookings(prev =>
+          prev.map(booking =>
+            booking.bookingNumber === bookingNumber
+              ? { ...booking, isDeleted: true }
+              : booking
+          )
         )
-      )
-      toast.success('예약이 취소/삭제되었습니다.')
+        toast.success('예약이 취소/삭제되었습니다.')
+      } else {
+        toast.error('삭제에 실패했습니다.')
+      }
     } catch (error) {
       console.error('Delete booking error:', error)
       toast.error('예약 삭제 중 오류가 발생했습니다.')
@@ -193,14 +206,27 @@ export function AdminDashboard({ onConsulting, onItemAdmin, onLogout }: AdminDas
 
   const restoreBooking = async (bookingNumber: string) => {
     try {
-      setBookings(prev => 
-        prev.map(booking => 
-          booking.bookingNumber === bookingNumber 
-            ? { ...booking, isDeleted: false }
-            : booking
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9f6e3f5f/admin/bookings/${bookingNumber}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isDeleted: false })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setBookings(prev =>
+          prev.map(booking =>
+            booking.bookingNumber === bookingNumber
+              ? { ...booking, isDeleted: false }
+              : booking
+          )
         )
-      )
-      toast.success('예약이 복원되었습니다.')
+        toast.success('예약이 복원되었습니다.')
+      } else {
+        toast.error('복원에 실패했습니다.')
+      }
     } catch (error) {
       console.error('Restore booking error:', error)
       toast.error('예약 복원 중 오류가 발생했습니다.')
