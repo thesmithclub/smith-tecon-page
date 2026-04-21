@@ -366,7 +366,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
       {/* 컨설팅 정보 입력 */}
       <section className="border-b border-neutral-100">
         <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <FieldLabel required>차량 입고일자</FieldLabel>
               <Popover>
@@ -405,30 +405,6 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <FieldLabel>전기차 첫 차량?</FieldLabel>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {['예, 첫 전기차', '아니오, 경험 있음'].map(opt => {
-                  const active = consultingData.intake.isFirstEV === opt
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => setConsultingData(prev => ({
-                        ...prev,
-                        intake: { ...prev.intake, isFirstEV: active ? '' : opt }
-                      }))}
-                      className={`h-12 px-4 rounded-xl border text-sm transition ${
-                        active
-                          ? 'bg-neutral-900 border-neutral-900 text-white'
-                          : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -440,6 +416,48 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
             <div className="text-xs uppercase tracking-[0.2em] text-neutral-400">Intake</div>
             <h2 className="text-2xl font-semibold tracking-tight mt-1">고객 라이프스타일 &amp; 니즈</h2>
             <p className="text-sm text-neutral-500 mt-1.5">선택한 항목을 바탕으로 최적의 패키지를 제안해드립니다.</p>
+          </div>
+
+          <div className="mb-8 pb-8 border-b border-neutral-200/80">
+            <div className="flex items-baseline justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">전기차 경험</div>
+                <div className="text-xs text-neutral-400 mt-1">이 차량이 첫 전기차인가요?</div>
+              </div>
+              {consultingData.intake.isFirstEV && (
+                <button
+                  onClick={() => setConsultingData(prev => ({
+                    ...prev,
+                    intake: { ...prev.intake, isFirstEV: '' }
+                  }))}
+                  className="text-[10px] uppercase tracking-[0.18em] text-neutral-400 hover:text-neutral-900 transition"
+                >
+                  선택 해제
+                </button>
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {['예, 첫 전기차', '아니오, 경험 있음'].map(opt => {
+                const active = consultingData.intake.isFirstEV === opt
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => setConsultingData(prev => ({
+                      ...prev,
+                      intake: { ...prev.intake, isFirstEV: active ? '' : opt }
+                    }))}
+                    className={`h-10 px-4 rounded-full border text-sm transition inline-flex items-center gap-1.5 ${
+                      active
+                        ? 'bg-neutral-900 border-neutral-900 text-white'
+                        : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
+                    }`}
+                  >
+                    {active && <Check className="h-3.5 w-3.5" />}
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
