@@ -38,14 +38,41 @@ interface SelectedItem {
   quantity: number
 }
 
+interface ConsultingIntake {
+  isFirstEV: string
+  vehicleUse: string[]
+  passengers: string[]
+  privacyPriority: string[]
+  interiorPreferences: string[]
+  exteriorPreferences: string[]
+}
+
 interface ConsultingData {
   bookingNumber: string
   carInDate: Date | undefined
   consultingNotes: string
   consultant: string
+  intake: ConsultingIntake
   selectedItems: SelectedItem[]
   totalPrice: number
 }
+
+const EMPTY_INTAKE: ConsultingIntake = {
+  isFirstEV: '',
+  vehicleUse: [],
+  passengers: [],
+  privacyPriority: [],
+  interiorPreferences: [],
+  exteriorPreferences: []
+}
+
+const INTAKE_OPTIONS = {
+  vehicleUse: ['출퇴근', '가족용', '업무/출장', '여가/레저', '장거리 주행'],
+  passengers: ['아이 동승', '반려동물 동승', '고령자 동승', '성인 동승'],
+  privacyPriority: ['프라이버시 중시', '열 차단 중시', '자외선 차단', '균형있게'],
+  interiorPreferences: ['프리미엄', '실용성', '미니멀', '테크/디지털', '편의성'],
+  exteriorPreferences: ['차량 보호(PPF/코팅)', '스타일링', '휠/타이어', '루프/캐리어', '미관 유지']
+} as const
 
 interface ConsultingPageProps {
   bookingNumber: string
@@ -63,6 +90,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
     carInDate: undefined,
     consultingNotes: '',
     consultant: '',
+    intake: { ...EMPTY_INTAKE },
     selectedItems: [],
     totalPrice: 0
   })
@@ -127,6 +155,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
           carInDate: existing.carInDate ? new Date(existing.carInDate) : undefined,
           consultingNotes: existing.consultingNotes || '',
           consultant: existing.consultant || '',
+          intake: { ...EMPTY_INTAKE, ...(existing.intake || {}) },
           selectedItems: existing.selectedItems || [],
           totalPrice: existing.totalPrice || 0
         }))
@@ -377,15 +406,105 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
               </Select>
             </div>
             <div>
-              <FieldLabel>상담 노트</FieldLabel>
-              <Textarea
-                value={consultingData.consultingNotes}
-                onChange={(e) => setConsultingData(prev => ({ ...prev, consultingNotes: e.target.value }))}
-                placeholder="상담 내용, 고객 요구 사항 등"
-                rows={3}
-                className="mt-2 rounded-xl border-neutral-200 resize-none"
-              />
+              <FieldLabel>전기차 첫 차량?</FieldLabel>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {['예, 첫 전기차', '아니오, 경험 있음'].map(opt => {
+                  const active = consultingData.intake.isFirstEV === opt
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => setConsultingData(prev => ({
+                        ...prev,
+                        intake: { ...prev.intake, isFirstEV: active ? '' : opt }
+                      }))}
+                      className={`h-12 px-4 rounded-xl border text-sm transition ${
+                        active
+                          ? 'bg-neutral-900 border-neutral-900 text-white'
+                          : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 상담 인테이크 - 고객 니즈 파악 */}
+      <section className="border-b border-neutral-100 bg-neutral-50/40">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10 lg:py-12">
+          <div className="mb-8">
+            <div className="text-xs uppercase tracking-[0.2em] text-neutral-400">Intake</div>
+            <h2 className="text-2xl font-semibold tracking-tight mt-1">고객 라이프스타일 &amp; 니즈</h2>
+            <p className="text-sm text-neutral-500 mt-1.5">선택한 항목을 바탕으로 최적의 패키지를 제안해드립니다.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+            <IntakeGroup
+              label="주요 용도"
+              hint="차량을 어떤 목적으로 사용하시나요? (복수 선택)"
+              options={INTAKE_OPTIONS.vehicleUse}
+              values={consultingData.intake.vehicleUse}
+              onToggle={(v) => setConsultingData(prev => ({
+                ...prev,
+                intake: { ...prev.intake, vehicleUse: toggleValue(prev.intake.vehicleUse, v) }
+              }))}
+            />
+            <IntakeGroup
+              label="동승자"
+              hint="자주 함께 탑승하는 구성원이 있나요? (복수 선택)"
+              options={INTAKE_OPTIONS.passengers}
+              values={consultingData.intake.passengers}
+              onToggle={(v) => setConsultingData(prev => ({
+                ...prev,
+                intake: { ...prev.intake, passengers: toggleValue(prev.intake.passengers, v) }
+              }))}
+            />
+            <IntakeGroup
+              label="프라이버시 / 썬팅"
+              hint="프라이버시와 열 차단 중 무엇이 우선인가요?"
+              options={INTAKE_OPTIONS.privacyPriority}
+              values={consultingData.intake.privacyPriority}
+              onToggle={(v) => setConsultingData(prev => ({
+                ...prev,
+                intake: { ...prev.intake, privacyPriority: toggleValue(prev.intake.privacyPriority, v) }
+              }))}
+            />
+            <IntakeGroup
+              label="실내 선호"
+              hint="실내 악세서리에서 중요하게 여기시는 요소"
+              options={INTAKE_OPTIONS.interiorPreferences}
+              values={consultingData.intake.interiorPreferences}
+              onToggle={(v) => setConsultingData(prev => ({
+                ...prev,
+                intake: { ...prev.intake, interiorPreferences: toggleValue(prev.intake.interiorPreferences, v) }
+              }))}
+            />
+            <IntakeGroup
+              label="외부 선호"
+              hint="외부 악세서리/보호 옵션 중 관심 있으신 항목"
+              options={INTAKE_OPTIONS.exteriorPreferences}
+              values={consultingData.intake.exteriorPreferences}
+              onToggle={(v) => setConsultingData(prev => ({
+                ...prev,
+                intake: { ...prev.intake, exteriorPreferences: toggleValue(prev.intake.exteriorPreferences, v) }
+              }))}
+              className="md:col-span-2"
+            />
+          </div>
+
+          <div className="mt-10">
+            <FieldLabel>추가 메모</FieldLabel>
+            <Textarea
+              value={consultingData.consultingNotes}
+              onChange={(e) => setConsultingData(prev => ({ ...prev, consultingNotes: e.target.value }))}
+              placeholder="위 항목 외 특이사항, 구체적인 요구사항, 고객 코멘트 등"
+              rows={3}
+              className="mt-2 rounded-xl border-neutral-200 bg-white resize-none"
+            />
           </div>
         </div>
       </section>
@@ -783,5 +902,55 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
       {children}
       {required && <span className="text-neutral-900">*</span>}
     </label>
+  )
+}
+
+function toggleValue(list: string[], value: string): string[] {
+  return list.includes(value) ? list.filter(v => v !== value) : [...list, value]
+}
+
+interface IntakeGroupProps {
+  label: string
+  hint?: string
+  options: readonly string[]
+  values: string[]
+  onToggle: (value: string) => void
+  className?: string
+}
+
+function IntakeGroup({ label, hint, options, values, onToggle, className = '' }: IntakeGroupProps) {
+  return (
+    <div className={className}>
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">{label}</div>
+          {hint && <div className="text-xs text-neutral-400 mt-1">{hint}</div>}
+        </div>
+        {values.length > 0 && (
+          <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400 tabular-nums">
+            {values.length}개 선택
+          </div>
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {options.map(opt => {
+          const active = values.includes(opt)
+          return (
+            <button
+              key={opt}
+              onClick={() => onToggle(opt)}
+              className={`h-10 px-4 rounded-full border text-sm transition inline-flex items-center gap-1.5 ${
+                active
+                  ? 'bg-neutral-900 border-neutral-900 text-white'
+                  : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
+              }`}
+            >
+              {active && <Check className="h-3.5 w-3.5" />}
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
