@@ -66,6 +66,7 @@ interface ConsultingData {
   intake: ConsultingIntake
   selectedItems: SelectedItem[]
   totalPrice: number
+  priceAdjustment: number
 }
 
 const EMPTY_INTAKE: ConsultingIntake = {
@@ -122,7 +123,8 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
     consultant: '',
     intake: { ...EMPTY_INTAKE },
     selectedItems: [],
-    totalPrice: 0
+    totalPrice: 0,
+    priceAdjustment: 0
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -190,7 +192,8 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
             ...si,
             mode: (si.mode ?? 'item_only') as SelectionMode
           })),
-          totalPrice: existing.totalPrice || 0
+          totalPrice: existing.totalPrice || 0,
+          priceAdjustment: existing.priceAdjustment || 0
         }))
       }
     } catch (error: any) {
@@ -358,7 +361,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">선택 {totalQty}건</div>
               <div className="text-lg font-semibold tabular-nums">
-                {consultingData.totalPrice.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
+                {(consultingData.totalPrice + consultingData.priceAdjustment).toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
               </div>
             </div>
             <Button
@@ -870,21 +873,52 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                 )}
               </div>
 
-              <div className="px-6 py-5 border-t border-neutral-200 bg-white rounded-b-2xl">
+              <div className="px-6 py-5 border-t border-neutral-200 bg-white rounded-b-2xl space-y-3">
+                {/* 소계 */}
                 <div className="flex items-baseline justify-between">
-                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400">Total</span>
-                  <span className="text-2xl font-semibold tabular-nums">
-                    {consultingData.totalPrice.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-base">원</span>
+                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400">Subtotal</span>
+                  <span className="text-base tabular-nums text-neutral-500">
+                    {consultingData.totalPrice.toLocaleString()}<span className="ml-0.5 text-sm">원</span>
                   </span>
                 </div>
+
+                {/* 조정금액 입력 */}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400 shrink-0">조정금액</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={consultingData.priceAdjustment}
+                      onChange={(e) =>
+                        setConsultingData(prev => ({
+                          ...prev,
+                          priceAdjustment: parseInt(e.target.value) || 0
+                        }))
+                      }
+                      className="w-32 text-right text-sm tabular-nums border border-neutral-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-neutral-400"
+                      placeholder="0"
+                    />
+                    <span className="text-sm text-neutral-400">원</span>
+                  </div>
+                </div>
+
+                {/* 최종 합계 */}
+                <div className="flex items-baseline justify-between border-t border-neutral-100 pt-3">
+                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400">Total</span>
+                  <span className="text-2xl font-semibold tabular-nums">
+                    {(consultingData.totalPrice + consultingData.priceAdjustment).toLocaleString()}
+                    <span className="text-neutral-400 ml-0.5 text-base">원</span>
+                  </span>
+                </div>
+
                 <Button
                   onClick={handleSubmit}
                   disabled={isSaving}
-                  className="mt-4 w-full h-12 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full text-[15px]"
+                  className="w-full h-12 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full text-[15px]"
                 >
                   {isSaving ? '저장 중…' : '상담 완료 · 예약 진행'}
                 </Button>
-                <p className="text-[11px] text-neutral-400 text-center mt-2">
+                <p className="text-[11px] text-neutral-400 text-center">
                   저장 시 예약 상태가 <strong className="text-neutral-600">상담완료</strong>로 변경됩니다.
                 </p>
               </div>
