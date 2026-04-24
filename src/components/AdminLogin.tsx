@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Button } from './ui/button'
 import { ImageWithFallback } from './figma/ImageWithFallback'
+import { supabase } from '../utils/supabase/client'
 
 interface AdminLoginProps {
   onLogin: () => void
@@ -9,30 +10,42 @@ interface AdminLoginProps {
 
 export function AdminLogin({ onLogin, onBackToHome }: AdminLoginProps) {
   const [credentials, setCredentials] = useState({
-    id: '',
+    email: '',
     password: ''
   })
   const [loginError, setLoginError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = () => {
-    if (credentials.id === 'admin' && credentials.password === 'smith2121!') {
-      setLoginError('')
-      setCredentials({ id: '', password: '' })
-      onLogin()
-    } else {
-      setLoginError('아이디 또는 비밀번호가 올바르지 않습니다.')
+  const handleLogin = async () => {
+    if (!credentials.email || !credentials.password) return
+
+    setIsLoading(true)
+    setLoginError('')
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password
+    })
+
+    setIsLoading(false)
+
+    if (error) {
+      setLoginError('이메일 또는 비밀번호가 올바르지 않습니다.')
+      return
     }
+
+    setCredentials({ email: '', password: '' })
+    onLogin()
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && credentials.id && credentials.password) {
+    if (e.key === 'Enter' && credentials.email && credentials.password) {
       handleLogin()
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 헤더 이미지 */}
       <div className="relative bg-black">
         <ImageWithFallback
           src="https://images.unsplash.com/photo-1717091238218-582d6904dad6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0ZXNsYSUyMGNhciUyMGVsZWN0cmljJTIwbW9kZXJufGVufDF8fHx8MTc1OTI5NjkzMHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
@@ -54,23 +67,24 @@ export function AdminLogin({ onLogin, onBackToHome }: AdminLoginProps) {
               메인으로
             </Button>
           </div>
-          
+
           <div className="space-y-4">
             <div>
-              <label htmlFor="admin-id" className="block text-sm font-medium text-gray-700 mb-1">
-                아이디
+              <label htmlFor="admin-email" className="block text-sm font-medium text-gray-700 mb-1">
+                이메일
               </label>
               <input
-                type="text"
-                id="admin-id"
-                value={credentials.id}
-                onChange={(e) => setCredentials(prev => ({ ...prev, id: e.target.value }))}
+                type="email"
+                id="admin-email"
+                value={credentials.email}
+                onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
                 onKeyPress={handleKeyPress}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                placeholder="아이디를 입력하세요"
+                placeholder="이메일을 입력하세요"
+                autoComplete="email"
               />
             </div>
-            
+
             <div>
               <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700 mb-1">
                 비밀번호
@@ -83,19 +97,20 @@ export function AdminLogin({ onLogin, onBackToHome }: AdminLoginProps) {
                 onKeyPress={handleKeyPress}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 placeholder="비밀번호를 입력하세요"
+                autoComplete="current-password"
               />
             </div>
-            
+
             {loginError && (
               <p className="text-red-600 text-sm">{loginError}</p>
             )}
-            
-            <Button 
-              onClick={handleLogin} 
+
+            <Button
+              onClick={handleLogin}
               className="w-full bg-red-600 hover:bg-red-700"
-              disabled={!credentials.id || !credentials.password}
+              disabled={!credentials.email || !credentials.password || isLoading}
             >
-              로그인
+              {isLoading ? '로그인 중...' : '로그인'}
             </Button>
           </div>
         </div>

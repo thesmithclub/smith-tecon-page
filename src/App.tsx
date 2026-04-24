@@ -8,7 +8,7 @@ import { ConsultingPage } from './components/ConsultingPage'
 import { ItemAdmin } from './components/ItemAdmin'
 import { ImageWithFallback } from './components/figma/ImageWithFallback'
 import { Toaster } from './components/ui/sonner'
-import { projectId, publicAnonKey } from './utils/supabase/info'
+import { supabase } from './utils/supabase/client'
 
 type Page = 'home' | 'status' | 'admin' | 'admin_login' | 'consulting' | 'item-admin'
 
@@ -33,42 +33,50 @@ export default function App() {
 
   // URL 기반 라우팅을 위한 초기화 및 감지
   useEffect(() => {
-    const handleInitialRoute = () => {
+    const applyRoute = (isLoggedIn: boolean) => {
       const path = getRelativePath()
       if (path === '/admin' || path.startsWith('/admin/')) {
-        const wasLoggedIn = sessionStorage.getItem('isAdmin') === 'true'
-        if (wasLoggedIn) {
+        if (isLoggedIn) {
           setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
         } else {
           setState(prev => ({ ...prev, currentPage: 'admin_login' }))
         }
       }
     }
+
+    // Supabase 세션 초기 확인
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      applyRoute(!!session)
+    })
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setState(prev => ({ ...prev, isAdmin: !!session }))
+    })
 
     const handlePopState = () => {
-      const path = getRelativePath()
-      if (path === '/admin' || path.startsWith('/admin/')) {
-        const wasLoggedIn = sessionStorage.getItem('isAdmin') === 'true'
-        if (wasLoggedIn) {
-          setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const path = getRelativePath()
+        if (path === '/admin' || path.startsWith('/admin/')) {
+          if (session) {
+            setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
+          } else {
+            setState(prev => ({ ...prev, currentPage: 'admin_login' }))
+          }
         } else {
-          setState(prev => ({ ...prev, currentPage: 'admin_login' }))
+          setState(prev => ({ ...prev, currentPage: 'home' }))
         }
-      } else {
-        setState(prev => ({ ...prev, currentPage: 'home' }))
-      }
+      })
     }
-
-    handleInitialRoute()
 
     window.addEventListener('popstate', handlePopState)
     return () => {
+      subscription.unsubscribe()
       window.removeEventListener('popstate', handlePopState)
     }
   }, [])
 
   const handleAdminLogin = () => {
-    sessionStorage.setItem('isAdmin', 'true')
     window.history.pushState({}, '', base + '/admin/dashboard')
     setState(prev => ({ ...prev, isAdmin: true, currentPage: 'admin' }))
   }
@@ -170,8 +178,8 @@ export default function App() {
           <AdminDashboard
             onConsulting={handleConsulting}
             onItemAdmin={() => navigateTo('item-admin')}
-            onLogout={() => {
-              sessionStorage.removeItem('isAdmin')
+            onLogout={async () => {
+              await supabase.auth.signOut()
               window.history.pushState({}, '', base + '/')
               setState({ currentPage: 'home', isAdmin: false })
             }}
