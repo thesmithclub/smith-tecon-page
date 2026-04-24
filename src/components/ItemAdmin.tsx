@@ -19,6 +19,7 @@ interface Item {
   imageUrl: string
   description: string
   price: number
+  installationPrice: number
   createdAt: string
   updatedAt: string
 }
@@ -29,6 +30,7 @@ interface ItemFormData {
   imageUrl: string
   description: string
   price: number
+  installationPrice: number
 }
 
 interface Package {
@@ -61,7 +63,8 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
     package: [],
     imageUrl: '',
     description: '',
-    price: 0
+    price: 0,
+    installationPrice: 0
   })
   const [packageFormData, setPackageFormData] = useState<PackageFormData>({
     name: '',
@@ -141,7 +144,8 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
       package: [],
       imageUrl: '',
       description: '',
-      price: 0
+      price: 0,
+      installationPrice: 0
     })
     setEditingItem(null)
   }
@@ -179,7 +183,8 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
       package: Array.isArray(item.package) ? item.package : [item.package],
       imageUrl: item.imageUrl,
       description: item.description,
-      price: item.price
+      price: item.price,
+      installationPrice: item.installationPrice || 0
     })
     setEditingItem(item)
     setIsDialogOpen(true)
@@ -460,7 +465,8 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
                   <TableRow>
                     <TableHead>제품명</TableHead>
                     <TableHead>패키지</TableHead>
-                    <TableHead>가격</TableHead>
+                    <TableHead>아이템가격</TableHead>
+                    <TableHead>시공가격</TableHead>
                     <TableHead>설명</TableHead>
                     <TableHead>이미지</TableHead>
                     <TableHead>등록일</TableHead>
@@ -484,6 +490,9 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
                       </TableCell>
                       <TableCell className="font-semibold">
                         {item.price.toLocaleString()}원
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {(item.installationPrice || 0).toLocaleString()}원
                       </TableCell>
                       <TableCell className="max-w-xs truncate">
                         {item.description}
@@ -605,13 +614,27 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="price" className="mb-2.5">가격 *</Label>
+                  <Label htmlFor="price" className="mb-2.5">아이템가격 *</Label>
                   <Input
                     id="price"
                     type="number"
                     value={formData.price}
                     onChange={(e) => setFormData(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
-                    placeholder="가격을 입력하세요"
+                    placeholder="아이템가격을 입력하세요"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div />
+                <div>
+                  <Label htmlFor="installationPrice" className="mb-2.5">시공가격</Label>
+                  <Input
+                    id="installationPrice"
+                    type="number"
+                    value={formData.installationPrice}
+                    onChange={(e) => setFormData(prev => ({ ...prev, installationPrice: parseInt(e.target.value) || 0 }))}
+                    placeholder="시공가격을 입력하세요"
                   />
                 </div>
               </div>

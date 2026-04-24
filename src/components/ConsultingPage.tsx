@@ -31,6 +31,7 @@ interface Item {
   imageUrl: string
   description: string
   price: number
+  installationPrice?: number
 }
 
 interface SelectedItem {
@@ -711,8 +712,15 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                           <p className="text-sm text-neutral-500 mt-1 line-clamp-2">{item.description}</p>
                         )}
                         <div className="mt-4 flex items-center justify-between">
-                          <div className="text-lg font-semibold tabular-nums">
-                            {item.price.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
+                          <div>
+                            <div className="text-lg font-semibold tabular-nums">
+                              {item.price.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
+                            </div>
+                            {item.installationPrice ? (
+                              <div className="text-xs text-neutral-500 tabular-nums mt-0.5">
+                                시공 {item.installationPrice.toLocaleString()}원
+                              </div>
+                            ) : null}
                           </div>
                           <Button
                             size="sm"
@@ -776,8 +784,13 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                               </button>
                             </div>
                             <div className="text-xs text-neutral-500 mt-0.5 tabular-nums">
-                              {si.item.price.toLocaleString()}원
+                              아이템 {si.item.price.toLocaleString()}원
                             </div>
+                            {si.item.installationPrice ? (
+                              <div className="text-xs text-neutral-400 tabular-nums">
+                                시공 {si.item.installationPrice.toLocaleString()}원
+                              </div>
+                            ) : null}
                             <div className="mt-2 flex items-center justify-between">
                               <div className="flex items-center border border-neutral-200 rounded-full bg-white">
                                 <button
@@ -928,8 +941,15 @@ function ItemDetailDialog({
                 </div>
               )}
 
-              <div className="mt-5 text-3xl font-semibold tabular-nums">
-                {item.price.toLocaleString()}<span className="text-neutral-400 ml-1 text-base">원</span>
+              <div className="mt-5">
+                <div className="text-3xl font-semibold tabular-nums">
+                  {item.price.toLocaleString()}<span className="text-neutral-400 ml-1 text-base">원</span>
+                </div>
+                {item.installationPrice ? (
+                  <div className="text-sm text-neutral-500 tabular-nums mt-1">
+                    시공가격 {item.installationPrice.toLocaleString()}원
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-6 border-t border-neutral-100 pt-5">
