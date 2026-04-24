@@ -237,8 +237,8 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
   }
 
   const handleSave = async () => {
-    if (!formData.name || formData.package.length === 0 || formData.price <= 0) {
-      toast.error('모든 필수 항목을 입력해주세요.')
+    if (!formData.name || formData.package.length === 0) {
+      toast.error('제품명과 패키지를 입력해주세요.')
       return
     }
 
@@ -466,7 +466,7 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
                     <TableHead>제품명</TableHead>
                     <TableHead>패키지</TableHead>
                     <TableHead>아이템가격</TableHead>
-                    <TableHead>시공가격</TableHead>
+                    <TableHead>공임비</TableHead>
                     <TableHead>설명</TableHead>
                     <TableHead>이미지</TableHead>
                     <TableHead>등록일</TableHead>
@@ -614,7 +614,7 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="price" className="mb-2.5">아이템가격 *</Label>
+                  <Label htmlFor="price" className="mb-2.5">아이템가격</Label>
                   <Input
                     id="price"
                     type="number"
@@ -628,13 +628,13 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div />
                 <div>
-                  <Label htmlFor="installationPrice" className="mb-2.5">시공가격</Label>
+                  <Label htmlFor="installationPrice" className="mb-2.5">공임비</Label>
                   <Input
                     id="installationPrice"
                     type="number"
                     value={formData.installationPrice}
                     onChange={(e) => setFormData(prev => ({ ...prev, installationPrice: parseInt(e.target.value) || 0 }))}
-                    placeholder="시공가격을 입력하세요"
+                    placeholder="공임비를 입력하세요"
                   />
                 </div>
               </div>

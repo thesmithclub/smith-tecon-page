@@ -34,9 +34,12 @@ interface Item {
   installationPrice?: number
 }
 
+type SelectionMode = 'all' | 'item_only' | 'installation_only'
+
 interface SelectedItem {
   item: Item
   quantity: number
+  mode: SelectionMode
 }
 
 interface ConsultingIntake {
@@ -87,6 +90,20 @@ const INTAKE_OPTIONS = {
   exteriorPreferences: ['차량 보호(PPF/코팅)', '스타일링', '휠/타이어', '루프/캐리어', '미관 유지', OTHER_OPTION]
 } as const
 
+const MODE_LABEL: Record<SelectionMode, string> = {
+  all: '전체',
+  item_only: '제품',
+  installation_only: '공임비',
+}
+
+function unitPrice(si: SelectedItem): number {
+  switch (si.mode ?? 'item_only') {
+    case 'all': return si.item.price + (si.item.installationPrice ?? 0)
+    case 'installation_only': return si.item.installationPrice ?? 0
+    default: return si.item.price
+  }
+}
+
 interface ConsultingPageProps {
   bookingNumber: string
   onBack: () => void
@@ -119,7 +136,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
 
   useEffect(() => {
     const total = consultingData.selectedItems.reduce(
-      (sum, si) => sum + si.item.price * si.quantity,
+      (sum, si) => sum + unitPrice(si) * si.quantity,
       0
     )
     setConsultingData(prev => ({ ...prev, totalPrice: total }))
@@ -169,7 +186,10 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
           consultingNotes: existing.consultingNotes || '',
           consultant: existing.consultant || '',
           intake: { ...EMPTY_INTAKE, ...(existing.intake || {}) },
-          selectedItems: existing.selectedItems || [],
+          selectedItems: (existing.selectedItems || []).map((si: any) => ({
+            ...si,
+            mode: (si.mode ?? 'item_only') as SelectionMode
+          })),
           totalPrice: existing.totalPrice || 0
         }))
       }
@@ -185,9 +205,11 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
     }
   }
 
-  const addItem = (item: Item) => {
+  const addItem = (item: Item, mode: SelectionMode = 'all') => {
     setConsultingData(prev => {
-      const existingIndex = prev.selectedItems.findIndex(si => si.item.id === item.id)
+      const existingIndex = prev.selectedItems.findIndex(
+        si => si.item.id === item.id && si.mode === mode
+      )
       if (existingIndex >= 0) {
         const newSelectedItems = [...prev.selectedItems]
         newSelectedItems[existingIndex] = {
@@ -196,26 +218,28 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
         }
         return { ...prev, selectedItems: newSelectedItems }
       }
-      return { ...prev, selectedItems: [...prev.selectedItems, { item, quantity: 1 }] }
+      return { ...prev, selectedItems: [...prev.selectedItems, { item, quantity: 1, mode }] }
     })
   }
 
-  const removeItem = (itemId: string) => {
+  const removeItem = (itemId: string, mode: SelectionMode) => {
     setConsultingData(prev => ({
       ...prev,
-      selectedItems: prev.selectedItems.filter(si => si.item.id !== itemId)
+      selectedItems: prev.selectedItems.filter(
+        si => !(si.item.id === itemId && si.mode === mode)
+      )
     }))
   }
 
-  const updateItemQuantity = (itemId: string, quantity: number) => {
+  const updateItemQuantity = (itemId: string, mode: SelectionMode, quantity: number) => {
     if (quantity <= 0) {
-      removeItem(itemId)
+      removeItem(itemId, mode)
       return
     }
     setConsultingData(prev => ({
       ...prev,
       selectedItems: prev.selectedItems.map(si =>
-        si.item.id === itemId ? { ...si, quantity } : si
+        si.item.id === itemId && si.mode === mode ? { ...si, quantity } : si
       )
     }))
   }
@@ -249,7 +273,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
   const selectAllVisibleInTab = () => {
     if (activeTab === ALL_TAB) return
     visibleItems.forEach(item => {
-      if (!selectedIds.has(item.id)) addItem(item)
+      if (!selectedIds.has(item.id)) addItem(item, 'all')
     })
     toast.success(`${activeTab} 패키지의 아이템이 선택되었습니다.`)
   }
@@ -711,29 +735,54 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                         {item.description && (
                           <p className="text-sm text-neutral-500 mt-1 line-clamp-2">{item.description}</p>
                         )}
-                        <div className="mt-4 flex items-center justify-between">
-                          <div>
-                            <div className="text-lg font-semibold tabular-nums">
-                              {item.price.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
-                            </div>
-                            {item.installationPrice ? (
-                              <div className="text-xs text-neutral-500 tabular-nums mt-0.5">
-                                시공 {item.installationPrice.toLocaleString()}원
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <div className="text-lg font-semibold tabular-nums">
+                                {item.price.toLocaleString()}<span className="text-neutral-400 ml-0.5 text-sm">원</span>
                               </div>
+                              {item.installationPrice ? (
+                                <div className="text-xs text-neutral-500 tabular-nums mt-0.5">
+                                  공임비 {item.installationPrice.toLocaleString()}원
+                                </div>
+                              ) : null}
+                            </div>
+                            {selected && (
+                              <div className="h-6 w-6 rounded-full bg-neutral-900 text-white flex items-center justify-center">
+                                <Check className="h-3.5 w-3.5" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              onClick={() => addItem(item, 'all')}
+                              className="rounded-full h-8 px-3 text-xs bg-neutral-900 text-white hover:bg-neutral-800"
+                              variant="ghost"
+                            >
+                              전체담기
+                            </Button>
+                            {item.installationPrice ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => addItem(item, 'item_only')}
+                                  className="rounded-full h-8 px-3 text-xs bg-neutral-100 text-neutral-900 hover:bg-neutral-200"
+                                  variant="ghost"
+                                >
+                                  제품만 담기
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => addItem(item, 'installation_only')}
+                                  className="rounded-full h-8 px-3 text-xs bg-neutral-100 text-neutral-900 hover:bg-neutral-200"
+                                  variant="ghost"
+                                >
+                                  공임비 담기
+                                </Button>
+                              </>
                             ) : null}
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); addItem(item) }}
-                            className={`rounded-full h-9 px-4 ${
-                              selected
-                                ? 'bg-neutral-100 text-neutral-900 hover:bg-neutral-200'
-                                : 'bg-neutral-900 text-white hover:bg-neutral-800'
-                            }`}
-                            variant="ghost"
-                          >
-                            {selected ? '+1 추가' : '담기'}
-                          </Button>
                         </div>
                       </div>
                     </article>
@@ -762,8 +811,8 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                   </div>
                 ) : (
                   <ul className="divide-y divide-neutral-200">
-                    {consultingData.selectedItems.map(si => (
-                      <li key={si.item.id} className="px-6 py-4">
+                    {consultingData.selectedItems.map((si, idx) => (
+                      <li key={`${si.item.id}_${si.mode}_${idx}`} className="px-6 py-4">
                         <div className="flex gap-3">
                           <div className="w-14 h-14 rounded-lg bg-white border border-neutral-200 overflow-hidden shrink-0">
                             {si.item.imageUrl ? (
@@ -774,27 +823,27 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
-                              <h4 className="text-sm font-medium leading-snug truncate">{si.item.name}</h4>
+                              <div className="min-w-0">
+                                <h4 className="text-sm font-medium leading-snug truncate">{si.item.name}</h4>
+                                <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-100 text-neutral-500 mt-0.5">
+                                  {MODE_LABEL[si.mode ?? 'item_only']}
+                                </span>
+                              </div>
                               <button
-                                onClick={() => removeItem(si.item.id)}
+                                onClick={() => removeItem(si.item.id, si.mode)}
                                 className="text-neutral-400 hover:text-neutral-900 transition shrink-0"
                                 aria-label="삭제"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
-                            <div className="text-xs text-neutral-500 mt-0.5 tabular-nums">
-                              아이템 {si.item.price.toLocaleString()}원
+                            <div className="text-xs text-neutral-500 mt-1 tabular-nums">
+                              단가 {unitPrice(si).toLocaleString()}원
                             </div>
-                            {si.item.installationPrice ? (
-                              <div className="text-xs text-neutral-400 tabular-nums">
-                                시공 {si.item.installationPrice.toLocaleString()}원
-                              </div>
-                            ) : null}
                             <div className="mt-2 flex items-center justify-between">
                               <div className="flex items-center border border-neutral-200 rounded-full bg-white">
                                 <button
-                                  onClick={() => updateItemQuantity(si.item.id, si.quantity - 1)}
+                                  onClick={() => updateItemQuantity(si.item.id, si.mode, si.quantity - 1)}
                                   className="h-7 w-7 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
                                   aria-label="수량 감소"
                                 >
@@ -802,7 +851,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                                 </button>
                                 <span className="w-7 text-center text-sm tabular-nums">{si.quantity}</span>
                                 <button
-                                  onClick={() => updateItemQuantity(si.item.id, si.quantity + 1)}
+                                  onClick={() => updateItemQuantity(si.item.id, si.mode, si.quantity + 1)}
                                   className="h-7 w-7 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
                                   aria-label="수량 증가"
                                 >
@@ -810,7 +859,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                                 </button>
                               </div>
                               <div className="text-sm font-semibold tabular-nums">
-                                {(si.item.price * si.quantity).toLocaleString()}원
+                                {(unitPrice(si) * si.quantity).toLocaleString()}원
                               </div>
                             </div>
                           </div>
@@ -846,19 +895,14 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
 
       <ItemDetailDialog
         item={detailItem}
-        onClose={() => setDetailItem(null)}
-        selectedQuantity={
-          detailItem
-            ? (consultingData.selectedItems.find(si => si.item.id === detailItem.id)?.quantity ?? 0)
-            : 0
+        selectedItems={detailItem
+          ? consultingData.selectedItems.filter(si => si.item.id === detailItem.id)
+          : []
         }
-        onAdd={(item) => addItem(item)}
-        onDecrement={(item) => {
-          const current = consultingData.selectedItems.find(si => si.item.id === item.id)
-          if (!current) return
-          updateItemQuantity(item.id, current.quantity - 1)
-        }}
-        onRemove={(item) => removeItem(item.id)}
+        onClose={() => setDetailItem(null)}
+        onAdd={(item, mode) => addItem(item, mode)}
+        onUpdateQuantity={(itemId, mode, qty) => updateItemQuantity(itemId, mode, qty)}
+        onRemove={(itemId, mode) => removeItem(itemId, mode)}
       />
     </div>
   )
@@ -866,22 +910,21 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
 
 function ItemDetailDialog({
   item,
-  selectedQuantity,
+  selectedItems,
   onClose,
   onAdd,
-  onDecrement,
+  onUpdateQuantity,
   onRemove
 }: {
   item: Item | null
-  selectedQuantity: number
+  selectedItems: SelectedItem[]
   onClose: () => void
-  onAdd: (item: Item) => void
-  onDecrement: (item: Item) => void
-  onRemove: (item: Item) => void
+  onAdd: (item: Item, mode: SelectionMode) => void
+  onUpdateQuantity: (itemId: string, mode: SelectionMode, quantity: number) => void
+  onRemove: (itemId: string, mode: SelectionMode) => void
 }) {
   const open = !!item
   const pkgs = item ? (Array.isArray(item.package) ? item.package : [item.package]) : []
-  const subtotal = item ? item.price * selectedQuantity : 0
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
@@ -912,7 +955,7 @@ function ItemDetailDialog({
             </div>
 
             {/* 상세 정보 */}
-            <div className="p-7 lg:p-8 flex flex-col">
+            <div className="p-7 lg:p-8 flex flex-col overflow-y-auto max-h-[90vh]">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex flex-wrap gap-1.5">
                   {pkgs.filter(Boolean).map(p => (
@@ -947,7 +990,7 @@ function ItemDetailDialog({
                 </div>
                 {item.installationPrice ? (
                   <div className="text-sm text-neutral-500 tabular-nums mt-1">
-                    시공가격 {item.installationPrice.toLocaleString()}원
+                    공임비 {item.installationPrice.toLocaleString()}원
                   </div>
                 ) : null}
               </div>
@@ -959,49 +1002,74 @@ function ItemDetailDialog({
                 </p>
               </div>
 
-              <div className="mt-auto pt-6">
-                {selectedQuantity > 0 ? (
-                  <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-4">
-                    <div className="flex items-center justify-between">
+              {/* 현재 선택된 항목 */}
+              {selectedItems.length > 0 && (
+                <div className="mt-5 border-t border-neutral-100 pt-5 space-y-2">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500 mb-3">선택 중</div>
+                  {selectedItems.map((si) => (
+                    <div key={si.mode} className="flex items-center justify-between rounded-xl bg-neutral-50 border border-neutral-200 px-4 py-3">
                       <div>
-                        <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400">선택 중</div>
-                        <div className="text-sm font-medium mt-0.5">
-                          소계 <span className="tabular-nums font-semibold">{subtotal.toLocaleString()}원</span>
-                        </div>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-200 text-neutral-600 mr-2">
+                          {MODE_LABEL[si.mode]}
+                        </span>
+                        <span className="text-sm tabular-nums font-medium">
+                          {unitPrice(si).toLocaleString()}원 × {si.quantity}
+                        </span>
                       </div>
-                      <div className="flex items-center border border-neutral-200 rounded-full bg-white">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center border border-neutral-200 rounded-full bg-white">
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, si.mode, si.quantity - 1)}
+                            className="h-7 w-7 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="w-6 text-center text-sm tabular-nums">{si.quantity}</span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.id, si.mode, si.quantity + 1)}
+                            className="h-7 w-7 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                         <button
-                          onClick={() => onDecrement(item)}
-                          className="h-9 w-9 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
-                          aria-label="수량 감소"
+                          onClick={() => onRemove(item.id, si.mode)}
+                          className="text-neutral-400 hover:text-neutral-900 transition"
                         >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <span className="w-9 text-center text-base font-medium tabular-nums">{selectedQuantity}</span>
-                        <button
-                          onClick={() => onAdd(item)}
-                          className="h-9 w-9 flex items-center justify-center text-neutral-600 hover:text-neutral-900"
-                          aria-label="수량 증가"
-                        >
-                          <Plus className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
-                    <button
-                      onClick={() => onRemove(item)}
-                      className="mt-3 text-xs text-neutral-500 hover:text-neutral-900 transition"
+                  ))}
+                </div>
+              )}
+
+              {/* 담기 버튼 */}
+              <div className="mt-auto pt-6 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => onAdd(item, 'all')}
+                  className="flex-1 h-11 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full"
+                >
+                  전체담기
+                </Button>
+                {item.installationPrice ? (
+                  <>
+                    <Button
+                      onClick={() => onAdd(item, 'item_only')}
+                      className="flex-1 h-11 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 rounded-full"
+                      variant="ghost"
                     >
-                      선택에서 제거
-                    </button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={() => onAdd(item)}
-                    className="w-full h-12 bg-neutral-900 hover:bg-neutral-800 text-white rounded-full text-[15px]"
-                  >
-                    담기
-                  </Button>
-                )}
+                      제품만 담기
+                    </Button>
+                    <Button
+                      onClick={() => onAdd(item, 'installation_only')}
+                      className="flex-1 h-11 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 rounded-full"
+                      variant="ghost"
+                    >
+                      공임비 담기
+                    </Button>
+                  </>
+                ) : null}
               </div>
             </div>
           </div>
