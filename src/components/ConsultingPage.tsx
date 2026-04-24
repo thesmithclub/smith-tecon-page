@@ -131,6 +131,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<string>(ALL_TAB)
   const [detailItem, setDetailItem] = useState<Item | null>(null)
+  const [adjustmentText, setAdjustmentText] = useState<string>('0')
 
   useEffect(() => {
     fetchBookingAndItems()
@@ -195,6 +196,7 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
           totalPrice: existing.totalPrice || 0,
           priceAdjustment: existing.priceAdjustment || 0
         }))
+        setAdjustmentText(String(existing.priceAdjustment || 0))
       }
     } catch (error: any) {
       if (error?.name === 'AbortError') {
@@ -882,19 +884,24 @@ export function ConsultingPage({ bookingNumber, onBack }: ConsultingPageProps) {
                   </span>
                 </div>
 
-                {/* 조정금액 입력 */}
+                {/* 추가금액 입력 */}
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400 shrink-0">조정금액</span>
+                  <span className="text-xs uppercase tracking-[0.2em] text-neutral-400 shrink-0">추가금액</span>
                   <div className="flex items-center gap-1">
                     <input
-                      type="number"
-                      value={consultingData.priceAdjustment}
-                      onChange={(e) =>
-                        setConsultingData(prev => ({
-                          ...prev,
-                          priceAdjustment: parseInt(e.target.value) || 0
-                        }))
-                      }
+                      type="text"
+                      inputMode="numeric"
+                      value={adjustmentText}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        if (/^-?\d*$/.test(raw)) {
+                          setAdjustmentText(raw)
+                          const parsed = raw === '' || raw === '-' ? 0 : parseInt(raw)
+                          if (!isNaN(parsed)) {
+                            setConsultingData(prev => ({ ...prev, priceAdjustment: parsed }))
+                          }
+                        }
+                      }}
                       className="w-32 text-right text-sm tabular-nums border border-neutral-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-neutral-400"
                       placeholder="0"
                     />
