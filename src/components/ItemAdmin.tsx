@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
 import { Badge } from './ui/badge'
-import { Pencil, Trash2, Plus } from 'lucide-react'
+import { Pencil, Trash2, Plus, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { toast } from 'sonner@2.0.3'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 
@@ -56,6 +56,9 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isPackageDialogOpen, setIsPackageDialogOpen] = useState(false)
+  const [isPackageListOpen, setIsPackageListOpen] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedPackageFilter, setSelectedPackageFilter] = useState('')
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [editingPackage, setEditingPackage] = useState<Package | null>(null)
   const [formData, setFormData] = useState<ItemFormData>({
@@ -351,6 +354,19 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
     }
   }
 
+  const filteredItems = items.filter(item => {
+    const matchesSearch = searchQuery === '' ||
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesPackage = selectedPackageFilter === '' ||
+      (Array.isArray(item.package)
+        ? item.package.includes(selectedPackageFilter)
+        : item.package === selectedPackageFilter)
+
+    return matchesSearch && matchesPackage
+  })
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -386,78 +402,144 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
 
         {/* 패키지 목록 테이블 */}
         <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>패키지 목록</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>패키지명</TableHead>
-                    <TableHead>설명</TableHead>
-                    <TableHead>아이템 수</TableHead>
-                    <TableHead>등록일</TableHead>
-                    <TableHead>액션</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {packages.map((pkg) => (
-                    <TableRow key={pkg.id}>
-                      <TableCell className="font-medium">{pkg.name}</TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {pkg.description}
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        {items.filter(item => {
-                          // package가 배열인지 문자열인지 확인하여 처리
-                          if (Array.isArray(item.package)) {
-                            return item.package.includes(pkg.name)
-                          } else {
-                            return item.package === pkg.name
-                          }
-                        }).length}개
-                      </TableCell>
-                      <TableCell>
-                        {new Date(pkg.createdAt).toLocaleDateString('ko-KR')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditPackageDialog(pkg)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeletePackage(pkg)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {packages.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                등록된 패키지가 없습니다.
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setIsPackageListOpen(prev => !prev)}
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle>패키지 목록</CardTitle>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{packages.length}개</span>
+                {isPackageListOpen ? (
+                  <ChevronUp className="h-5 w-5" />
+                ) : (
+                  <ChevronDown className="h-5 w-5" />
+                )}
               </div>
-            )}
-          </CardContent>
+            </div>
+          </CardHeader>
+
+          {isPackageListOpen && (
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>패키지명</TableHead>
+                      <TableHead>설명</TableHead>
+                      <TableHead>아이템 수</TableHead>
+                      <TableHead>등록일</TableHead>
+                      <TableHead>액션</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {packages.map((pkg) => (
+                      <TableRow key={pkg.id}>
+                        <TableCell className="font-medium">{pkg.name}</TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {pkg.description}
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {items.filter(item => {
+                            if (Array.isArray(item.package)) {
+                              return item.package.includes(pkg.name)
+                            } else {
+                              return item.package === pkg.name
+                            }
+                          }).length}개
+                        </TableCell>
+                        <TableCell>
+                          {new Date(pkg.createdAt).toLocaleDateString('ko-KR')}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => { e.stopPropagation(); openEditPackageDialog(pkg) }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={(e) => { e.stopPropagation(); handleDeletePackage(pkg) }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {packages.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  등록된 패키지가 없습니다.
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
 
         {/* 아이템 목록 테이블 */}
         <Card>
           <CardHeader>
-            <CardTitle>아이템 목록</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>아이템 목록</CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {filteredItems.length} / {items.length}개
+              </span>
+            </div>
+
+            {/* 검색 및 필터 */}
+            <div className="mt-4 space-y-3">
+              {/* 검색창 */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="제품명 또는 설명으로 검색..."
+                  className="pl-9 pr-9"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* 패키지 필터 */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={selectedPackageFilter === '' ? 'default' : 'outline'}
+                  onClick={() => setSelectedPackageFilter('')}
+                  className="rounded-full"
+                >
+                  전체
+                </Button>
+                {packages.map(pkg => (
+                  <Button
+                    key={pkg.id}
+                    size="sm"
+                    variant={selectedPackageFilter === pkg.name ? 'default' : 'outline'}
+                    onClick={() => setSelectedPackageFilter(selectedPackageFilter === pkg.name ? '' : pkg.name)}
+                    className="rounded-full"
+                  >
+                    {pkg.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
+
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
@@ -474,7 +556,7 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
+                  {filteredItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
@@ -537,9 +619,11 @@ export function ItemAdmin({ onBack }: ItemAdminProps) {
               </Table>
             </div>
 
-            {items.length === 0 && (
+            {filteredItems.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                등록된 아이템이 없습니다.
+                {items.length === 0
+                  ? '등록된 아이템이 없습니다.'
+                  : '검색 조건에 맞는 아이템이 없습니다.'}
               </div>
             )}
           </CardContent>
