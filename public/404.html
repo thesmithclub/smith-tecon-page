@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <script>
       // GitHub Pages SPA 라우팅 처리
-      // /smith-tecon-page/admin → /?/admin 으로 리다이렉트 후 index.html이 복원
-      var segmentCount = 1;
+      // /admin → /?/admin 으로 리다이렉트 후 index.html이 복원
+      var segmentCount = 0;
       var l = window.location;
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
